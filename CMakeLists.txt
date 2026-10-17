@@ -17,6 +17,51 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+find_program(CLANG_FORMAT_EXECUTABLE
+    NAMES clang-format
+)
+
+if(CLANG_FORMAT_EXECUTABLE)
+    file(GLOB_RECURSE DNP_FORMAT_SOURCES
+        CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.tpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cxx"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cuh"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.tpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cxx"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cuh"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.tpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cxx"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cuh"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cu"
+    )
+
+    add_custom_target(dnp_format
+        COMMAND "${CLANG_FORMAT_EXECUTABLE}" -i ${DNP_FORMAT_SOURCES}
+        COMMENT "Formatting C, C++, and CUDA sources"
+        VERBATIM
+    )
+else()
+    message(WARNING "clang-format not found - automatic formatting disabled")
+endif()
+
 file(GLOB_RECURSE FLUID_SIMULATOR_SOURCES
     CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
@@ -25,6 +70,10 @@ file(GLOB_RECURSE FLUID_SIMULATOR_SOURCES
 add_library(dnp
     ${FLUID_SIMULATOR_SOURCES}
 )
+
+if(CLANG_FORMAT_EXECUTABLE)
+    add_dependencies(dnp dnp_format)
+endif()
 
 target_include_directories(
     dnp

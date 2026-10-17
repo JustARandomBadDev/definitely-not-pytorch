@@ -3,31 +3,23 @@
 
 namespace dnp {
 
-Tensor<float> forward(
-    Tensor<float> entry,
-    const Network& network
-) {
+Tensor<float> forward(Tensor<float> entry, const Network& network) {
 
     auto z = entry.matmul(network.w1) + network.b1;
     z.map([&](float x) { return std::tanh(x); });
-    
+
     auto p_y = z.matmul(network.w2) + network.b2;
 
     return p_y;
 }
 
-void backprob(
-    Tensor<float> entry,
-    float y,
-    float lr,
-    Network& network
-) {
+void backprob(Tensor<float> entry, float y, float lr, Network& network) {
     // Forward
 
     auto z = entry.matmul(network.w1) + network.b1;
     auto n = z;
     n.map([&](float x) { return std::tanh(x); });
-    
+
     auto p_y = n.matmul(network.w2) + network.b2;
 
     // Loss
@@ -37,21 +29,13 @@ void backprob(
 
     // Output layer
 
-    auto d_w2 = n.matmul(
-        {{d_y}},
-        MatrixOp::Transpose,
-        MatrixOp::None
-    );
-    
-    Tensor<float> d_b2 {{d_y}};
+    auto d_w2 = n.matmul({{d_y}}, MatrixOp::Transpose, MatrixOp::None);
+
+    Tensor<float> d_b2{{d_y}};
 
     // Gradient propagated to hidden neurons
 
-    auto d_n = d_y.matmul(
-        network.w2,
-        MatrixOp::None,
-        MatrixOp::Transpose
-    );
+    auto d_n = d_y.matmul(network.w2, MatrixOp::None, MatrixOp::Transpose);
 
     // Through tanh
 
@@ -62,10 +46,7 @@ void backprob(
 
     // Hidden layer
 
-    auto d_w1 = entry.matmul(
-        d_z,
-        MatrixOp::Transpose
-    );
+    auto d_w1 = entry.matmul(d_z, MatrixOp::Transpose);
 
     auto d_b1 = d_z;
 
@@ -78,4 +59,4 @@ void backprob(
     network.b2 -= d_b2 * lr;
 }
 
-}
+} // namespace dnp

@@ -15,17 +15,9 @@ struct Network {
     Tensor<float> b2;
 };
 
-Tensor<float> forward(
-    Tensor<float> entry,
-    const Network& network
-);
+Tensor<float> forward(Tensor<float> entry, const Network& network);
 
-void backprob(
-    Tensor<float> entry,
-    float y,
-    float lr,
-    Network& network
-);
+void backprob(Tensor<float> entry, float y, float lr, Network& network);
 
 inline float tanh(float z) {
     return std::tanh(z);
@@ -46,6 +38,6 @@ inline float d_loss(float y, float p_y) {
     return 2.0f * (p_y - y);
 }
 
-}
+} // namespace dnp
 
 #endif

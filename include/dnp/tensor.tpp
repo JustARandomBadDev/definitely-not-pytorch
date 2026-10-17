@@ -8,21 +8,15 @@
 
 namespace dnp {
 
-template<typename T>
-Tensor<T>::Tensor(Shape p_shape) {
+template <typename T> Tensor<T>::Tensor(Shape p_shape) {
     _shape = p_shape;
     _size = _shape.rows * _shape.cols;
     _data.resize(_size, static_cast<T>(0));
 }
 
-template<typename T>
-Tensor<T>::Tensor(
-    std::initializer_list<std::initializer_list<T>> p_values
-) {
-    _shape = {
-        p_values.size(),
-        p_values.begin()->size()
-    };
+template <typename T>
+Tensor<T>::Tensor(std::initializer_list<std::initializer_list<T>> p_values) {
+    _shape = {p_values.size(), p_values.begin()->size()};
 
     _size = _shape.rows * _shape.cols;
     _data.resize(_size);
@@ -41,28 +35,26 @@ Tensor<T>::Tensor(
     }
 }
 
-template<typename T>
-template<typename Generator>
+template <typename T>
+template <typename Generator>
 void Tensor<T>::generate(Generator p_generator) {
     for (T& v : _data) {
         v = p_generator();
     }
 }
 
-template<typename T>
-template<typename F>
-void Tensor<T>::map(F p_function) {
+template <typename T> template <typename F> void Tensor<T>::map(F p_function) {
     for (T& v : _data) {
         v = p_function(v);
     }
 }
 
-template<typename T>
-void Tensor<T>::set(
-    std::size_t row,
-    std::size_t col,
-    const T v
-) {
+// =======================================================
+//                         Setters
+// =======================================================
+
+template <typename T>
+void Tensor<T>::set(std::size_t row, std::size_t col, const T v) {
     if (row >= _shape.rows || col >= _shape.cols) {
         throw std::invalid_argument("Set outside tensor shape");
     }
@@ -70,11 +62,7 @@ void Tensor<T>::set(
     _data[row * _shape.cols + col] = v;
 }
 
-template<typename T>
-void Tensor<T>::set(
-    std::size_t i,
-    const T v
-) {
+template <typename T> void Tensor<T>::set(std::size_t i, const T v) {
     if (i >= _size) {
         throw std::invalid_argument("Set outside tensor shape");
     }
@@ -86,11 +74,7 @@ void Tensor<T>::set(
 //                         Getters
 // =======================================================
 
-template<typename T>
-T Tensor<T>::get(
-    std::size_t row,
-    std::size_t col
-) const {
+template <typename T> T Tensor<T>::get(std::size_t row, std::size_t col) const {
     if (row >= _shape.rows || col >= _shape.cols) {
         throw std::invalid_argument("Get outside tensor shape");
     }
@@ -98,13 +82,11 @@ T Tensor<T>::get(
     return _data[row * _shape.cols + col];
 }
 
-template<typename T>
-Shape Tensor<T>::shape() const {
+template <typename T> Shape Tensor<T>::shape() const {
     return _shape;
 }
 
-template<typename T>
-std::size_t Tensor<T>::size() const {
+template <typename T> std::size_t Tensor<T>::size() const {
     return _size;
 }
 
@@ -112,7 +94,7 @@ std::size_t Tensor<T>::size() const {
 //                         Copy operators
 // ==============================================================
 
-template<typename T>
+template <typename T>
 Tensor<T> Tensor<T>::matmul(
     const Tensor<T>& p_other,
     MatrixOp p_this_op,
@@ -123,11 +105,9 @@ Tensor<T> Tensor<T>::matmul(
     const bool transpose_this = p_this_op == MatrixOp::Transpose;
     const bool transpose_other = p_other_op == MatrixOp::Transpose;
 
-    const std::size_t this_rows =
-        transpose_this ? _shape.cols : _shape.rows;
+    const std::size_t this_rows = transpose_this ? _shape.cols : _shape.rows;
 
-    const std::size_t this_cols =
-        transpose_this ? _shape.rows : _shape.cols;
+    const std::size_t this_cols = transpose_this ? _shape.rows : _shape.cols;
 
     const std::size_t other_rows =
         transpose_other ? other_shape.cols : other_shape.rows;
@@ -139,23 +119,17 @@ Tensor<T> Tensor<T>::matmul(
         throw std::invalid_argument("matmul: Tensor shapes don't match");
     }
 
-    Tensor<T> result({
-        this_rows,
-        other_cols
-    });
+    Tensor<T> result({this_rows, other_cols});
 
     for (std::size_t row = 0; row < this_rows; row++) {
         for (std::size_t col = 0; col < other_cols; col++) {
             T value = static_cast<T>(0);
 
             for (std::size_t i = 0; i < this_cols; i++) {
-                const T a = transpose_this
-                    ? get(i, row)
-                    : get(row, i);
+                const T a = transpose_this ? get(i, row) : get(row, i);
 
-                const T b = transpose_other
-                    ? p_other.get(col, i)
-                    : p_other.get(i, col);
+                const T b =
+                    transpose_other ? p_other.get(col, i) : p_other.get(i, col);
 
                 value += a * b;
             }
@@ -167,7 +141,7 @@ Tensor<T> Tensor<T>::matmul(
     return result;
 }
 
-template<typename T>
+template <typename T>
 Tensor<T> Tensor<T>::elementwise_mul(const Tensor<T>& p_other) {
     if (_shape.rows != p_other._shape.rows ||
         _shape.cols != p_other._shape.cols) {
@@ -183,7 +157,7 @@ Tensor<T> Tensor<T>::elementwise_mul(const Tensor<T>& p_other) {
     return result;
 }
 
-template<typename T>
+template <typename T>
 Tensor<T> Tensor<T>::operator+(const Tensor<T>& p_other) const {
     if (_shape.rows != p_other._shape.rows ||
         _shape.cols != p_other._shape.cols) {
@@ -197,7 +171,7 @@ Tensor<T> Tensor<T>::operator+(const Tensor<T>& p_other) const {
     return result;
 }
 
-template<typename T>
+template <typename T>
 Tensor<T> Tensor<T>::operator-(const Tensor<T>& p_other) const {
     if (_shape.rows != p_other._shape.rows ||
         _shape.cols != p_other._shape.cols) {
@@ -211,8 +185,7 @@ Tensor<T> Tensor<T>::operator-(const Tensor<T>& p_other) const {
     return result;
 }
 
-template<typename T>
-Tensor<T> Tensor<T>::operator*(T p_scalar) const {
+template <typename T> Tensor<T> Tensor<T>::operator*(T p_scalar) const {
     Tensor<T> result = *this;
 
     for (T& v : result._data) {
@@ -226,7 +199,7 @@ Tensor<T> Tensor<T>::operator*(T p_scalar) const {
 //                         Operators
 // ========================================================
 
-template<typename T>
+template <typename T>
 Tensor<T>& Tensor<T>::operator+=(const Tensor<T>& p_other) {
     if (_shape.rows != p_other._shape.rows ||
         _shape.cols != p_other._shape.cols) {
@@ -240,7 +213,7 @@ Tensor<T>& Tensor<T>::operator+=(const Tensor<T>& p_other) {
     return *this;
 }
 
-template<typename T>
+template <typename T>
 Tensor<T>& Tensor<T>::operator-=(const Tensor<T>& p_other) {
     if (_shape.rows != p_other._shape.rows ||
         _shape.cols != p_other._shape.cols) {
@@ -254,8 +227,7 @@ Tensor<T>& Tensor<T>::operator-=(const Tensor<T>& p_other) {
     return *this;
 }
 
-template<typename T>
-Tensor<T>& Tensor<T>::operator*=(T p_scalar) {
+template <typename T> Tensor<T>& Tensor<T>::operator*=(T p_scalar) {
     for (T& v : _data) {
         v *= p_scalar;
     }
@@ -263,6 +235,6 @@ Tensor<T>& Tensor<T>::operator*=(T p_scalar) {
     return *this;
 }
 
-}
+} // namespace dnp
 
 #endif
