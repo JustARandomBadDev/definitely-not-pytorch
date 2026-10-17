@@ -3,31 +3,25 @@
 
 #include <cmath>
 
+#include "dnp/tensor.hpp"
+
 namespace dnp {
 
 struct Network {
-    float w11 = 0.1f;
-    float w12 = -0.2f;
-    float w21 = -0.3f;
-    float w22 = 0.4f;
+    Tensor<float> w1;
+    Tensor<float> w2;
 
-    float w31 = 0.5f;
-    float w32 = -0.6f;
-
-    float b1 = 0.0f;
-    float b2 = 0.0f;
-    float b3 = 0.0f;
+    Tensor<float> b1;
+    Tensor<float> b2;
 };
 
-float forward(
-    float e1,
-    float e2,
+Tensor<float> forward(
+    Tensor<float> entry,
     const Network& network
 );
 
 void backprob(
-    float e1,
-    float e2,
+    Tensor<float> entry,
     float y,
     float lr,
     Network& network

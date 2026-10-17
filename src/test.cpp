@@ -1,98 +1,81 @@
 #include "dnp/test.hpp"
+#include "dnp/tensor.hpp"
 
 namespace dnp {
 
-float forward(
-    float e1,
-    float e2,
+Tensor<float> forward(
+    Tensor<float> entry,
     const Network& network
 ) {
-    float z1 = e1 * network.w11 + e2 * network.w12 + network.b1;
-    float n1 = tanh(z1);
 
-    float z2 = e1 * network.w21 + e2 * network.w22 + network.b2;
-    float n2 = tanh(z2);
-
-    float p_y = n1 * network.w31 + n2 * network.w32 + network.b3;
+    auto z = entry.matmul(network.w1) + network.b1;
+    z.map([&](float x) { return std::tanh(x); });
+    
+    auto p_y = z.matmul(network.w2) + network.b2;
 
     return p_y;
 }
 
 void backprob(
-    float e1,
-    float e2,
+    Tensor<float> entry,
     float y,
     float lr,
     Network& network
 ) {
-    /*
-     * Forward
-     */
+    // Forward
 
-    float z1 = e1 * network.w11 + e2 * network.w12 + network.b1;
-    float n1 = tanh(z1);
+    auto z = entry.matmul(network.w1) + network.b1;
+    auto n = z;
+    n.map([&](float x) { return std::tanh(x); });
+    
+    auto p_y = n.matmul(network.w2) + network.b2;
 
-    float z2 = e1 * network.w21 + e2 * network.w22 + network.b2;
-    float n2 = tanh(z2);
+    // Loss
 
-    float p_y = n1 * network.w31 + n2 * network.w32 + network.b3;
+    float l = loss(y, p_y.get(0, 0));
+    Tensor<float> d_y = {{d_loss(y, p_y.get(0, 0))}};
 
-    /*
-     * Loss
-     */
+    // Output layer
 
-    float l = loss(y, p_y);
-    float dL_dy = d_loss(y, p_y);
+    auto d_w2 = n.matmul(
+        {{d_y}},
+        MatrixOp::Transpose,
+        MatrixOp::None
+    );
+    
+    Tensor<float> d_b2 {{d_y}};
 
-    /*
-     * Output layer
-     */
+    // Gradient propagated to hidden neurons
 
-    float d_w31 = dL_dy * n1;
-    float d_w32 = dL_dy * n2;
-    float d_b3 = dL_dy;
+    auto d_n = d_y.matmul(
+        network.w2,
+        MatrixOp::None,
+        MatrixOp::Transpose
+    );
 
-    /*
-     * Gradient propagated to hidden neurons
-     */
+    // Through tanh
 
-    float d_n1 = dL_dy * network.w31;
-    float d_n2 = dL_dy * network.w32;
+    auto z_dtanh = z;
+    z_dtanh.map(d_tanh);
 
-    /*
-     * Through tanh
-     */
+    auto d_z = d_n.elementwise_mul(z_dtanh);
 
-    float d_z1 = d_n1 * d_tanh(z1);
-    float d_z2 = d_n2 * d_tanh(z2);
+    // Hidden layer
 
-    /*
-     * Hidden layer
-     */
+    auto d_w1 = entry.matmul(
+        d_z,
+        MatrixOp::Transpose
+    );
 
-    float d_w11 = d_z1 * e1;
-    float d_w12 = d_z1 * e2;
+    auto d_b1 = d_z;
 
-    float d_w21 = d_z2 * e1;
-    float d_w22 = d_z2 * e2;
+    // Gradient descent
 
-    float d_b1 = d_z1;
-    float d_b2 = d_z2;
+    network.w1 -= d_w1 * lr;
+    network.w2 -= d_w2 * lr;
 
-    /*
-     * Gradient descent
-     */
-
-    network.w11 -= lr * d_w11;
-    network.w12 -= lr * d_w12;
-    network.w21 -= lr * d_w21;
-    network.w22 -= lr * d_w22;
-    network.w31 -= lr * d_w31;
-    network.w32 -= lr * d_w32;
-
-    network.b1 -= lr * d_b1;
-    network.b2 -= lr * d_b2;
-    network.b3 -= lr * d_b3;
+    network.b1 -= d_b1 * lr;
+    network.b2 -= d_b2 * lr;
 }
 
 }
