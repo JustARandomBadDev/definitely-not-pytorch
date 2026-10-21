@@ -2,46 +2,46 @@
 #include <random>
 #include <vector>
 
+#include "dnp/neural_network.hpp"
 #include "dnp/tensor.hpp"
-#include "dnp/test.hpp"
 
 struct Possibility {
     dnp::Tensor<float> e;
-    float y;
+    dnp::Tensor<float> y;
 };
 
 int main() {
-    int epochs = 1'000'000;
-    float learning_rate = 0.0001f;
+    int epochs = 100;
+    float learning_rate = 0.1f;
 
     std::mt19937 generator(std::random_device{}());
     std::uniform_real_distribution<float> distribution(-1, 1);
 
-    std::vector<Possibility> xor_table = {{{{0.0f, 0.0f}}, 0.0f},
-        {{{1.0f, 0.0f}}, 1.0f},
-        {{{0.0f, 1.0f}}, 1.0f},
-        {{{1.0f, 1.0f}}, 0.0f}};
+    dnp::NeuralNetwork<float>
+        nn{{2}, {8, dnp::Tan}, {8, dnp::Tan}, {4, dnp::Tan}, {1}};
 
-    dnp::Network network{dnp::Tensor<float>({2, 2}),
-        dnp::Tensor<float>({2, 1}),
-        dnp::Tensor<float>({1, 2}),
-        dnp::Tensor<float>({1, 1})};
+    nn.initialize(dnp::Initializer::Random);
 
-    network.w1.generate([&]() { return distribution(generator); });
-    network.w2.generate([&]() { return distribution(generator); });
+    std::vector<Possibility> xor_table = {
+        {{{0.0f, 0.0f}}, {{0.0f}}},
+        {{{1.0f, 0.0f}}, {{1.0f}}},
+        {{{0.0f, 1.0f}}, {{1.0f}}},
+        {{{1.0f, 1.0f}}, {{0.0f}}}
+    };
 
     for (int i = 0; i < epochs; i++) {
-        for (const Possibility& p : xor_table) {
-            backprob(p.e, p.y, learning_rate, network);
+        for (Possibility& p : xor_table) {
+            nn.backward(p.e, p.y);
+            nn.gradientDescent(learning_rate);
         }
     }
 
-    for (const Possibility& p : xor_table) {
-        auto prediction = forward(p.e, network);
+    for (Possibility& p : xor_table) {
+        auto prediction = nn.forward(p.e);
 
         std::cout << p.e.get(0, 0) << " XOR " << p.e.get(0, 1)
                   << " -> predicted: " << prediction.get(0, 0)
-                  << " | expected: " << p.y << "\n";
+                  << " | expected: " << p.y.get(0, 0) << "\n";
     }
 
     return 0;

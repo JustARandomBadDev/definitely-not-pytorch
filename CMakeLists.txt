@@ -62,14 +62,7 @@ else()
     message(WARNING "clang-format not found - automatic formatting disabled")
 endif()
 
-file(GLOB_RECURSE FLUID_SIMULATOR_SOURCES
-    CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-)
-
-add_library(dnp
-    ${FLUID_SIMULATOR_SOURCES}
-)
+add_library(dnp INTERFACE)
 
 if(CLANG_FORMAT_EXECUTABLE)
     add_dependencies(dnp dnp_format)
@@ -77,7 +70,7 @@ endif()
 
 target_include_directories(
     dnp
-    PUBLIC
+    INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 

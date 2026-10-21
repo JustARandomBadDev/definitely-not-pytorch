@@ -29,11 +29,9 @@ template <typename T> class Tensor {
     Shape shape() const;
     std::size_t size() const;
 
-    Tensor<T> matmul(
-        const Tensor<T>& p_other,
+    Tensor<T> matmul(const Tensor<T>& p_other,
         MatrixOp p_this_op = MatrixOp::None,
-        MatrixOp p_other_op = MatrixOp::None
-    ) const;
+        MatrixOp p_other_op = MatrixOp::None) const;
     Tensor<T> elementwise_mul(const Tensor<T>& p_other);
 
     Tensor<T> operator+(const Tensor<T>& p_other) const;

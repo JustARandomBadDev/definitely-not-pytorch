@@ -22,16 +22,22 @@ AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
 
-# Function calls & Function declarations and definitions
+# Function calls & function declarations and definitions
 BinPackArguments: false
 BinPackParameters: OnePerLine
 
-# Multiline function formatting
+BreakFunctionDefinitionParameters: true
+
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
+
 AlignAfterOpenBracket: false
-BreakAfterOpenBracketFunction: true
+
+BreakAfterOpenBracketFunction: false
 BreakBeforeCloseBracketFunction: true
+
+BreakAfterOpenBracketBracedList: true
+BreakBeforeCloseBracketBracedList: true
 
 # Other
 NamespaceIndentation: None
