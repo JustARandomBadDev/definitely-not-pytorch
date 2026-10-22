@@ -26,6 +26,13 @@ template <typename T> class Tensor {
     void set(std::size_t i, T v);
     T get(std::size_t x, std::size_t y) const;
 
+    T* data() {
+        return _data.data();
+    }
+    const T* data() const {
+        return _data.data();
+    }
+
     Shape shape() const;
     std::size_t size() const;
 

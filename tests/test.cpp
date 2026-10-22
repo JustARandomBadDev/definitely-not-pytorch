@@ -5,6 +5,8 @@
 #include "dnp/neural_network.hpp"
 #include "dnp/tensor.hpp"
 
+#include "dnp/serialization/model.hpp"
+
 struct Possibility {
     dnp::Tensor<float> e;
     dnp::Tensor<float> y;
@@ -36,8 +38,23 @@ int main() {
         }
     }
 
+    std::cout << "Initial Model :\n";
+
     for (Possibility& p : xor_table) {
         auto prediction = nn.forward(p.e);
+
+        std::cout << p.e.get(0, 0) << " XOR " << p.e.get(0, 1)
+                  << " -> predicted: " << prediction.get(0, 0)
+                  << " | expected: " << p.y.get(0, 0) << "\n";
+    }
+
+    std::cout << "\nSaved & Loaded Model :\n";
+
+    dnp::serialization::saveModel(nn, "model/model.dnp");
+    auto nn2 = dnp::serialization::loadModel<float>("model/model.dnp");
+
+    for (Possibility& p : xor_table) {
+        auto prediction = nn2.forward(p.e);
 
         std::cout << p.e.get(0, 0) << " XOR " << p.e.get(0, 1)
                   << " -> predicted: " << prediction.get(0, 0)

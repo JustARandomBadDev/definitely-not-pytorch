@@ -13,32 +13,52 @@ namespace dnp {
 
 template <typename T>
 NeuralNetwork<T>::NeuralNetwork(
+    const std::vector<LayerDescriptor>& p_layers
+) {
+    initializeLayers(p_layers);
+}
+
+template <typename T>
+NeuralNetwork<T>::NeuralNetwork(
     std::initializer_list<LayerDescriptor> p_layers
 ) {
+    initializeLayers(std::span<const LayerDescriptor>(p_layers.begin(),
+        p_layers.size()));
+}
+
+template <typename T>
+void NeuralNetwork<T>::initializeLayers(
+    std::span<const LayerDescriptor> p_layers
+) {
+    if (p_layers.size() < 2) {
+        throw std::invalid_argument("NeuralNetwork requires an input layer and "
+                                    "at least one output layer");
+    }
+
+    if (p_layers[0].size == 0) {
+        throw std::invalid_argument("NeuralNetwork input size cannot be 0");
+    }
+
+    _input_size = p_layers[0].size;
+
     _layers.reserve(p_layers.size() - 1);
     _train_data.reserve(p_layers.size() - 1);
     _gradients.reserve(p_layers.size() - 1);
 
-    bool entry = false;
+    std::size_t prev_layer_size = _input_size;
 
-    std::size_t prev_layer_size;
+    for (std::size_t i = 1; i < p_layers.size(); i++) {
+        const LayerDescriptor& layer = p_layers[i];
 
-    for (const auto& v : p_layers) {
-        if (!entry) {
-            _size_entry_layer = v.size;
-            prev_layer_size = _size_entry_layer;
-            entry = true;
-            continue;
+        if (layer.size == 0) {
+            throw std::invalid_argument(
+                "Cannot initialize NeuralNetwork if a layer has a size of 0"
+            );
         }
 
-        if (v.size <= 0)
-            throw std::invalid_argument(
-                "Cannot initialize NeuralNetwork if a layer has a size <= 0"
-            );
+        addLayer(prev_layer_size, layer.size, layer.activation);
 
-        addLayer(prev_layer_size, v.size, v.activation);
-
-        prev_layer_size = v.size;
+        prev_layer_size = layer.size;
     }
 }
 
