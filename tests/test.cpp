@@ -1,6 +1,4 @@
-#include <iostream>
 #include <random>
-#include <vector>
 
 #include "dnp/neural_network.hpp"
 #include "dnp/tensor.hpp"
@@ -12,7 +10,7 @@ struct Possibility {
     dnp::Tensor<float> y;
 };
 
-int main() {
+int old() {
     int epochs = 100;
     float learning_rate = 0.1f;
 
@@ -60,6 +58,39 @@ int main() {
                   << " -> predicted: " << prediction.get(0, 0)
                   << " | expected: " << p.y.get(0, 0) << "\n";
     }
+
+    std::cout << "\n" << nn.toString() << "\n";
+
+    return 0;
+}
+
+int main() {
+    // return old();
+
+    int epochs = 1000;
+    float learning_rate = 0.1f;
+
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_real_distribution<float> distribution(-1, 1);
+
+    dnp::NeuralNetwork<float>
+        nn{{2}, {8, dnp::Tan}, {8, dnp::Tan}, {4, dnp::Tan}, {1}};
+
+    nn.initialize(dnp::Initializer::Random);
+
+    dnp::Tensor<float> input =
+        {{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}};
+
+    dnp::Tensor<float> output = {{0.0f}, {1.0f}, {1.0f}, {0.0f}};
+
+    for (int i = 0; i < epochs; i++) {
+        nn.backward(input, output);
+        nn.gradientDescent(learning_rate);
+    }
+
+    auto prediction = nn.forward(input);
+
+    std::cout << prediction.toString() << "\n";
 
     return 0;
 }

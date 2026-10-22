@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "dnp/activation.hpp"
@@ -34,6 +35,8 @@ template <typename T> class NeuralNetwork {
     void backward(Tensor<T>& p_input, Tensor<T>& p_output);
 
     void gradientDescent(float p_learning_rate);
+
+    std::string toString() const;
 
     std::size_t getInputSize() const {
         return _input_size;

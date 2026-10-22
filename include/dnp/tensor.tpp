@@ -4,6 +4,7 @@
 #include "dnp/tensor.hpp"
 
 #include <cstddef>
+#include <sstream>
 #include <stdexcept>
 
 namespace dnp {
@@ -113,6 +114,35 @@ template <typename T> std::size_t Tensor<T>::size() const {
     return _size;
 }
 
+template <typename T> std::string Tensor<T>::toString() const {
+    std::ostringstream stream;
+
+    stream << "Tensor(shape=" << _shape.rows << 'x' << _shape.cols
+           << ", values=[";
+
+    if (_shape.rows > 0) stream << '\n';
+
+    for (std::size_t row = 0; row < _shape.rows; row++) {
+        stream << "    [";
+
+        for (std::size_t col = 0; col < _shape.cols; col++) {
+            if (col > 0) stream << ", ";
+
+            stream << get(row, col);
+        }
+
+        stream << ']';
+
+        if (row + 1 < _shape.rows) stream << ',';
+
+        stream << '\n';
+    }
+
+    stream << "])";
+
+    return stream.str();
+}
+
 // ==============================================================
 //                         Copy operators
 // ==============================================================
@@ -177,6 +207,41 @@ Tensor<T> Tensor<T>::elementwise_mul(
 
     for (std::size_t i = 0; i < _size; i++) {
         result.set(i, _data[i] * p_other._data[i]);
+    }
+
+    return result;
+}
+
+template <typename T>
+Tensor<T> Tensor<T>::addRowVector(
+    const Tensor<T>& p_row
+) const {
+    if (p_row.shape().rows != 1 || p_row.shape().cols != _shape.cols) {
+        throw std::invalid_argument("Row tensor shape must be [1, cols]");
+    }
+
+    Tensor<T> result(_shape);
+
+    for (std::size_t row = 0; row < _shape.rows; row++) {
+        for (std::size_t col = 0; col < _shape.cols; col++) {
+            result.set(row, col, get(row, col) + p_row.get(0, col));
+        }
+    }
+
+    return result;
+}
+
+template <typename T> Tensor<T> Tensor<T>::sumRows() const {
+    Tensor<T> result(Shape{1, _shape.cols});
+
+    for (std::size_t col = 0; col < _shape.cols; col++) {
+        T sum = static_cast<T>(0);
+
+        for (std::size_t row = 0; row < _shape.rows; row++) {
+            sum += get(row, col);
+        }
+
+        result.set(0, col, sum);
     }
 
     return result;

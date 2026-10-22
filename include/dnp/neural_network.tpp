@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 
 namespace dnp {
@@ -86,7 +87,8 @@ Tensor<T> NeuralNetwork<T>::forward(
         Layer& layer = _layers[index];
         TrainData& train_data = _train_data[index];
 
-        train_data.linear = previous.matmul(layer.weights) + layer.biais;
+        train_data.linear =
+            previous.matmul(layer.weights).addRowVector(layer.biais);
         train_data.activated = train_data.linear;
         train_data.activated.map([&](T x) {
             return activate(x, layer.activation);
@@ -125,8 +127,11 @@ void NeuralNetwork<T>::backward(
     Tensor<T>& p_input,
     Tensor<T>& p_output
 ) {
+    std::size_t batch_size = p_input.shape().rows;
+
     Tensor<T> p_y = forward(p_input);
-    Tensor<T> gradient = (p_y - p_output) * static_cast<T>(2);
+    Tensor<T> gradient =
+        (p_y - p_output) * (static_cast<T>(2) / static_cast<T>(batch_size));
 
     for (std::size_t index = _layers.size(); index-- > 0;) {
         Layer& layer = _layers[index];
@@ -138,7 +143,7 @@ void NeuralNetwork<T>::backward(
 
         Tensor<T> d_linear = gradient.elementwise_mul(d_activation);
 
-        _gradients[index].biais = d_linear;
+        _gradients[index].biais = d_linear.sumRows();
 
         const Tensor<T>& previous =
             index == 0 ? p_input : _train_data[index - 1].activated;
@@ -159,6 +164,26 @@ void NeuralNetwork<T>::gradientDescent(
         _layers[index].weights -= _gradients[index].weights * p_learning_rate;
         _layers[index].biais -= _gradients[index].biais * p_learning_rate;
     }
+}
+
+template <typename T> std::string NeuralNetwork<T>::toString() const {
+    std::ostringstream stream;
+
+    stream << "NeuralNetwork(input_size=" << _input_size
+           << ", layers=" << _layers.size() << ')';
+
+    for (std::size_t index = 0; index < _layers.size(); index++) {
+        const Layer& layer = _layers[index];
+        const Shape weights_shape = layer.weights.shape();
+        const Shape bias_shape = layer.biais.shape();
+
+        stream << "\n    Layer " << index << ": weights=" << weights_shape.rows
+               << 'x' << weights_shape.cols << ", bias=" << bias_shape.rows
+               << 'x' << bias_shape.cols
+               << ", activation=" << getStringFromActivation(layer.activation);
+    }
+
+    return stream.str();
 }
 
 template <typename T>

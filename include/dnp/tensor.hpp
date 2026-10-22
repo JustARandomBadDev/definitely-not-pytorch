@@ -2,6 +2,7 @@
 #define DNP_TENSOR_HPP
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 namespace dnp {
@@ -35,11 +36,14 @@ template <typename T> class Tensor {
 
     Shape shape() const;
     std::size_t size() const;
+    std::string toString() const;
 
     Tensor<T> matmul(const Tensor<T>& p_other,
         MatrixOp p_this_op = MatrixOp::None,
         MatrixOp p_other_op = MatrixOp::None) const;
     Tensor<T> elementwise_mul(const Tensor<T>& p_other);
+    Tensor<T> addRowVector(const Tensor<T>& p_row) const;
+    Tensor<T> sumRows() const;
 
     Tensor<T> operator+(const Tensor<T>& p_other) const;
     Tensor<T> operator-(const Tensor<T>& p_other) const;
