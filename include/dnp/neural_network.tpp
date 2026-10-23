@@ -67,7 +67,9 @@ template <typename T>
 void NeuralNetwork<T>::initialize(
     Initializer p_initializer
 ) {
-    // p_initializer is deliberately left unused yet
+    if (p_initializer != Initializer::Random) {
+        throw std::invalid_argument("Unknown neural network initializer");
+    }
 
     std::mt19937 generator(std::random_device{}());
     std::uniform_real_distribution<float> distribution(-1, 1);
@@ -153,16 +155,6 @@ void NeuralNetwork<T>::backward(
 
         gradient =
             d_linear.matmul(layer.weights, MatrixOp::None, MatrixOp::Transpose);
-    }
-}
-
-template <typename T>
-void NeuralNetwork<T>::gradientDescent(
-    float p_learning_rate
-) {
-    for (std::size_t index = 0; index < _layers.size(); index++) {
-        _layers[index].weights -= _gradients[index].weights * p_learning_rate;
-        _layers[index].biais -= _gradients[index].biais * p_learning_rate;
     }
 }
 

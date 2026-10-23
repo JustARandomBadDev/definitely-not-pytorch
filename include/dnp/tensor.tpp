@@ -203,7 +203,7 @@ Tensor<T> Tensor<T>::elementwise_mul(
         throw std::invalid_argument("Tensor shapes don't match");
     }
 
-    Tensor<float> result(_shape);
+    Tensor<T> result(_shape);
 
     for (std::size_t i = 0; i < _size; i++) {
         result.set(i, _data[i] * p_other._data[i]);

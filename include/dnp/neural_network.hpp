@@ -26,6 +26,11 @@ template <typename T> class NeuralNetwork {
         Activation activation;
     };
 
+    struct Gradient {
+        Tensor<T> weights;
+        Tensor<T> biais;
+    };
+
     NeuralNetwork(const std::vector<LayerDescriptor>& p_layers);
     NeuralNetwork(std::initializer_list<LayerDescriptor> p_layers);
 
@@ -34,13 +39,12 @@ template <typename T> class NeuralNetwork {
     Tensor<T> forward(Tensor<T>& p_input);
     void backward(Tensor<T>& p_input, Tensor<T>& p_output);
 
-    void gradientDescent(float p_learning_rate);
-
     std::string toString() const;
 
     std::size_t getInputSize() const {
         return _input_size;
     }
+
     std::vector<Layer>& getLayers() {
         return _layers;
     }
@@ -48,15 +52,14 @@ template <typename T> class NeuralNetwork {
         return _layers;
     }
 
+    const std::vector<Gradient>& getGradients() const {
+        return _gradients;
+    }
+
   private:
     struct TrainData {
         Tensor<T> linear;
         Tensor<T> activated;
-    };
-
-    struct Gradient {
-        Tensor<T> weights;
-        Tensor<T> biais;
     };
 
     std::size_t _input_size;

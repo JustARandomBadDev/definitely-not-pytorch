@@ -51,6 +51,15 @@ if(CLANG_FORMAT_EXECUTABLE)
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cxx"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cuh"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.tpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.cxx"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.cuh"
+        "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/*.cu"
     )
 
     add_custom_target(dnp_format
@@ -74,12 +83,33 @@ target_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-add_executable(dnp_test
-    tests/test.cpp
+add_executable(dnp_sandbox
+    sandbox/main.cpp
 )
 
 target_link_libraries(
-    dnp_test
+    dnp_sandbox
     PRIVATE
         dnp
+)
+
+add_executable(dnp_tests
+    tests/main.cpp
+    tests/tensor.cpp
+    tests/activation.cpp
+    tests/neural_network.cpp
+    tests/serialization.cpp
+)
+
+target_link_libraries(
+    dnp_tests
+    PRIVATE
+        dnp
+)
+
+enable_testing()
+
+add_test(
+    NAME dnp_tests
+    COMMAND dnp_tests
 )
