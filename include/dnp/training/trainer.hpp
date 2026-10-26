@@ -16,8 +16,10 @@ template <typename T> class Trainer {
     )
         : _network(p_network), _optimizer(p_optimizer) {}
 
-    void train(Tensor<T> p_input, Tensor<T> p_target);
-    void train(Tensor<T> p_input, Tensor<T> p_target, std::size_t p_epochs);
+    void train(const Tensor<T>& p_input, const Tensor<T>& p_target);
+    void train(const Tensor<T>& p_input,
+        const Tensor<T>& p_target,
+        std::size_t p_epochs);
 
   private:
     NeuralNetwork<T>& _network;

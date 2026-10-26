@@ -81,7 +81,7 @@ void NeuralNetwork<T>::initialize(
 
 template <typename T>
 Tensor<T> NeuralNetwork<T>::forward(
-    Tensor<T>& p_input
+    const Tensor<T>& p_input
 ) {
     auto previous = p_input;
 
@@ -107,7 +107,7 @@ Tensor<T> NeuralNetwork<T>::forward(
  *
  * Start with:
  *
- *     gradient = 2 * (p_y - p_output)
+ *     gradient = 2 * (p_y - p_output) / p_output.size()
  *
  * For each layer, from last to first:
  *
@@ -126,14 +126,24 @@ Tensor<T> NeuralNetwork<T>::forward(
  */
 template <typename T>
 void NeuralNetwork<T>::backward(
-    Tensor<T>& p_input,
-    Tensor<T>& p_output
+    const Tensor<T>& p_input,
+    const Tensor<T>& p_output
 ) {
-    std::size_t batch_size = p_input.shape().rows;
-
     Tensor<T> p_y = forward(p_input);
-    Tensor<T> gradient =
-        (p_y - p_output) * (static_cast<T>(2) / static_cast<T>(batch_size));
+
+    if (p_y.shape().rows != p_output.shape().rows ||
+        p_y.shape().cols != p_output.shape().cols) {
+        throw std::invalid_argument(
+            "NeuralNetwork output and target shapes must match"
+        );
+    }
+
+    if (p_output.size() == 0) {
+        throw std::invalid_argument("NeuralNetwork target cannot be empty");
+    }
+
+    Tensor<T> gradient = (p_y - p_output) *
+                         (static_cast<T>(2) / static_cast<T>(p_output.size()));
 
     for (std::size_t index = _layers.size(); index-- > 0;) {
         Layer& layer = _layers[index];

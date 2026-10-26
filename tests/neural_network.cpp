@@ -87,7 +87,7 @@ NeuralNetwork<float> makeGradientNetwork() {
 
 float meanSquaredLoss(
     NeuralNetwork<float>& p_network,
-    Tensor<float>& p_input,
+    const Tensor<float>& p_input,
     const Tensor<float>& p_target
 ) {
     const Tensor<float> prediction = p_network.forward(p_input);
@@ -101,7 +101,7 @@ float meanSquaredLoss(
         }
     }
 
-    return loss / static_cast<float>(prediction.shape().rows);
+    return loss / static_cast<float>(prediction.size());
 }
 
 DNP_TEST(
@@ -327,6 +327,44 @@ DNP_TEST(
         numericalGradient(1, true, 0, 0),
         2e-4,
         "output bias numerical gradient");
+}
+
+DNP_TEST(
+    neural_network_multi_output_gradient_uses_all_elements
+) {
+    NeuralNetwork<float> network{{2}, {3, None}};
+    const Tensor<float> input{{1, 2}, {3, 4}};
+    const Tensor<float> target{{1, 2, 3}, {4, 5, 6}};
+    SGD<float> optimizer(0.1f);
+
+    network.backward(input, target);
+    optimizer.step(network);
+
+    const auto& layer = network.getLayers()[0];
+    expectShape(layer.weights, 2, 3, "multi-output weights");
+    expectShape(layer.biais, 1, 3, "multi-output bias");
+    expectNear(layer.weights.get(0, 0),
+        13.0f / 30.0f,
+        1e-6,
+        "multi-output normalized weight update");
+    expectNear(layer.biais.get(0, 0),
+        1.0f / 6.0f,
+        1e-6,
+        "multi-output normalized bias update");
+}
+
+DNP_TEST(
+    neural_network_backward_rejects_target_shape_mismatch
+) {
+    NeuralNetwork<float> network{{2}, {2, None}};
+    const Tensor<float> input{{1, 2}, {3, 4}};
+    const Tensor<float> target{{1}, {2}};
+
+    expectThrows<std::invalid_argument>(
+        [&]() { network.backward(input, target); },
+        "backward target shape mismatch",
+        "shapes must match"
+    );
 }
 
 DNP_TEST(

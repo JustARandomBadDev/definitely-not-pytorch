@@ -36,8 +36,8 @@ template <typename T> class NeuralNetwork {
 
     void initialize(Initializer p_initializer);
 
-    Tensor<T> forward(Tensor<T>& p_input);
-    void backward(Tensor<T>& p_input, Tensor<T>& p_output);
+    Tensor<T> forward(const Tensor<T>& p_input);
+    void backward(const Tensor<T>& p_input, const Tensor<T>& p_output);
 
     std::string toString() const;
 

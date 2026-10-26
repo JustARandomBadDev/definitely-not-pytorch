@@ -98,6 +98,7 @@ add_executable(dnp_tests
     tests/tensor.cpp
     tests/activation.cpp
     tests/neural_network.cpp
+    tests/training.cpp
     tests/serialization.cpp
 )
 
