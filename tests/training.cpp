@@ -4,7 +4,8 @@
 #include <string>
 
 #include "dnp/neural_network.hpp"
-#include "dnp/training/sgd.hpp"
+#include "dnp/training/loss/mse.hpp"
+#include "dnp/training/optimizers/sgd.hpp"
 #include "dnp/training/trainer.hpp"
 
 namespace {
@@ -13,6 +14,9 @@ using dnp::NeuralNetwork;
 using dnp::Tensor;
 using dnp::test::expectEqual;
 using dnp::test::expectNear;
+using dnp::test::expectTensorNear;
+using dnp::test::expectThrows;
+using dnp::training::MeanSquaredError;
 using dnp::training::SGD;
 using dnp::training::Trainer;
 
@@ -24,6 +28,18 @@ template <typename T> NeuralNetwork<T> makeTrainingNetwork() {
     layer.biais = {{static_cast<T>(0.1)}};
 
     return network;
+}
+
+template <typename T>
+void backwardMeanSquaredError(
+    NeuralNetwork<T>& p_network,
+    const Tensor<T>& p_input,
+    const Tensor<T>& p_target,
+    const MeanSquaredError<T>& p_loss
+) {
+    const Tensor<T> prediction = p_network.forward(p_input);
+    const Tensor<T> gradient = p_loss.gradient(prediction, p_target);
+    p_network.backward(p_input, gradient);
 }
 
 template <typename T>
@@ -72,8 +88,9 @@ DNP_TEST(
     const Tensor<float> input{{1, 2}, {3, 4}};
     const Tensor<float> target{{1}, {2}};
     SGD<float> optimizer(0.1f);
+    MeanSquaredError<float> mse;
 
-    network.backward(input, target);
+    backwardMeanSquaredError(network, input, target, mse);
     optimizer.step(network);
 
     const auto& layer = network.getLayers()[0];
@@ -91,9 +108,10 @@ DNP_TEST(
     const Tensor<float> target{{1}, {2}};
     SGD<float> slow(0.1f);
     SGD<float> fast(0.2f);
+    MeanSquaredError<float> mse;
 
-    slow_network.backward(input, target);
-    fast_network.backward(input, target);
+    backwardMeanSquaredError(slow_network, input, target, mse);
+    backwardMeanSquaredError(fast_network, input, target, mse);
     slow.step(slow_network);
     fast.step(fast_network);
 
@@ -123,9 +141,10 @@ DNP_TEST(
     const Tensor<float> target{{0.75f}, {-0.5f}};
     SGD<float> manual_optimizer(0.05f);
     SGD<float> trainer_optimizer(0.05f);
-    Trainer<float> trainer(trained, trainer_optimizer);
+    MeanSquaredError<float> mse;
+    Trainer<float> trainer(trained, trainer_optimizer, mse);
 
-    manual.backward(input, target);
+    backwardMeanSquaredError(manual, input, target, mse);
     manual_optimizer.step(manual);
     trainer.train(input, target);
 
@@ -144,13 +163,14 @@ DNP_TEST(
     const Tensor<float> target{{0.75f}, {-0.5f}};
     SGD<float> trainer_optimizer(0.05f);
     SGD<float> manual_optimizer(0.05f);
-    Trainer<float> trainer(trainer_network, trainer_optimizer);
+    MeanSquaredError<float> mse;
+    Trainer<float> trainer(trainer_network, trainer_optimizer, mse);
     constexpr std::size_t epochs = 5;
 
     trainer.train(input, target, epochs);
 
     for (std::size_t epoch = 0; epoch < epochs; epoch++) {
-        manual_network.backward(input, target);
+        backwardMeanSquaredError(manual_network, input, target, mse);
         manual_optimizer.step(manual_network);
     }
 
@@ -171,7 +191,8 @@ DNP_TEST(
     const Tensor<double> input{{2.0, -1.0}};
     const Tensor<double> target{{3.0}};
     SGD<double> optimizer(0.1);
-    Trainer<double> trainer(network, optimizer);
+    MeanSquaredError<double> mse;
+    Trainer<double> trainer(network, optimizer, mse);
 
     trainer.train(input, target);
 
@@ -184,6 +205,46 @@ DNP_TEST(
         1e-12,
         "double second weight update");
     expectNear(layer.biais.get(0, 0), 0.43, 1e-12, "double bias update");
+}
+
+DNP_TEST(
+    training_mse_computes_values_and_rejects_invalid_inputs
+) {
+    const MeanSquaredError<float> mse;
+    const Tensor<float> prediction{{1, 3}};
+    const Tensor<float> target{{0, 1}};
+
+    expectNear(mse.compute(prediction, target), 2.5f, 1e-6, "MSE value");
+    expectTensorNear(mse.gradient(prediction, target),
+        1,
+        2,
+        {1, 2},
+        1e-6,
+        "MSE gradient");
+
+    const Tensor<float> different_shape{{0}, {1}};
+    expectThrows<std::invalid_argument>(
+        [&]() { (void)mse.compute(prediction, different_shape); },
+        "MSE compute shape mismatch",
+        "shapes must match"
+    );
+    expectThrows<std::invalid_argument>(
+        [&]() { (void)mse.gradient(prediction, different_shape); },
+        "MSE gradient shape mismatch",
+        "shapes must match"
+    );
+
+    const Tensor<float> empty(dnp::Shape{0, 1});
+    expectThrows<std::invalid_argument>(
+        [&]() { (void)mse.compute(empty, empty); },
+        "MSE compute empty tensors",
+        "cannot be empty"
+    );
+    expectThrows<std::invalid_argument>(
+        [&]() { (void)mse.gradient(empty, empty); },
+        "MSE gradient empty tensors",
+        "cannot be empty"
+    );
 }
 
 } // namespace

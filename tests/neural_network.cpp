@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "dnp/neural_network.hpp"
-#include "dnp/training/sgd.hpp"
+#include "dnp/training/loss/mse.hpp"
+#include "dnp/training/optimizers/sgd.hpp"
 #include "dnp/training/trainer.hpp"
 
 namespace {
@@ -23,6 +24,7 @@ using dnp::test::expectShape;
 using dnp::test::expectTensorNear;
 using dnp::test::expectThrows;
 using dnp::test::expectTrue;
+using dnp::training::MeanSquaredError;
 using dnp::training::SGD;
 using dnp::training::Trainer;
 
@@ -102,6 +104,17 @@ float meanSquaredLoss(
     }
 
     return loss / static_cast<float>(prediction.size());
+}
+
+void backwardMeanSquaredError(
+    NeuralNetwork<float>& p_network,
+    const Tensor<float>& p_input,
+    const Tensor<float>& p_target
+) {
+    const MeanSquaredError<float> mse;
+    const Tensor<float> prediction = p_network.forward(p_input);
+    const Tensor<float> gradient = mse.gradient(prediction, p_target);
+    p_network.backward(p_input, gradient);
 }
 
 DNP_TEST(
@@ -228,7 +241,7 @@ DNP_TEST(
     Tensor<float> target{{1}, {2}};
     SGD<float> optimizer(0.1f);
 
-    network.backward(input, target);
+    backwardMeanSquaredError(network, input, target);
     optimizer.step(network);
 
     const auto& layer = network.getLayers()[0];
@@ -270,7 +283,7 @@ DNP_TEST(
 
     NeuralNetwork<float> updated = base;
     SGD<float> optimizer(1.0f);
-    updated.backward(input, target);
+    backwardMeanSquaredError(updated, input, target);
     optimizer.step(updated);
 
     const float analytical_hidden_weight =
@@ -337,7 +350,7 @@ DNP_TEST(
     const Tensor<float> target{{1, 2, 3}, {4, 5, 6}};
     SGD<float> optimizer(0.1f);
 
-    network.backward(input, target);
+    backwardMeanSquaredError(network, input, target);
     optimizer.step(network);
 
     const auto& layer = network.getLayers()[0];
@@ -354,16 +367,24 @@ DNP_TEST(
 }
 
 DNP_TEST(
-    neural_network_backward_rejects_target_shape_mismatch
+    neural_network_backward_validates_forward_state_and_gradient_shape
 ) {
     NeuralNetwork<float> network{{2}, {2, None}};
     const Tensor<float> input{{1, 2}, {3, 4}};
-    const Tensor<float> target{{1}, {2}};
+    const Tensor<float> invalid_gradient{{1}, {2}};
+
+    expectThrows<std::logic_error>(
+        [&]() { network.backward(input, invalid_gradient); },
+        "backward without forward",
+        "requires a forward pass"
+    );
+
+    (void)network.forward(input);
 
     expectThrows<std::invalid_argument>(
-        [&]() { network.backward(input, target); },
-        "backward target shape mismatch",
-        "shapes must match"
+        [&]() { network.backward(input, invalid_gradient); },
+        "backward gradient shape mismatch",
+        "gradient shape"
     );
 }
 
@@ -382,7 +403,8 @@ DNP_TEST(
 
     const float initial_loss = meanSquaredLoss(network, input, target);
     SGD<float> optimizer(0.1f);
-    Trainer<float> trainer(network, optimizer);
+    MeanSquaredError<float> mse;
+    Trainer<float> trainer(network, optimizer, mse);
 
     trainer.train(input, target, 3000);
 

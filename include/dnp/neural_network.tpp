@@ -99,6 +99,8 @@ Tensor<T> NeuralNetwork<T>::forward(
         previous = train_data.activated;
     }
 
+    _has_forward_data = true;
+
     return _train_data.back().activated;
 }
 
@@ -127,23 +129,31 @@ Tensor<T> NeuralNetwork<T>::forward(
 template <typename T>
 void NeuralNetwork<T>::backward(
     const Tensor<T>& p_input,
-    const Tensor<T>& p_output
+    const Tensor<T>& p_gradient
 ) {
-    Tensor<T> p_y = forward(p_input);
-
-    if (p_y.shape().rows != p_output.shape().rows ||
-        p_y.shape().cols != p_output.shape().cols) {
-        throw std::invalid_argument(
-            "NeuralNetwork output and target shapes must match"
+    if (!_has_forward_data) {
+        throw std::logic_error(
+            "NeuralNetwork backward requires a forward pass"
         );
     }
 
-    if (p_output.size() == 0) {
-        throw std::invalid_argument("NeuralNetwork target cannot be empty");
+    const Shape output_shape = _train_data.back().activated.shape();
+
+    if (p_input.shape().rows != output_shape.rows ||
+        p_input.shape().cols != _input_size) {
+        throw std::invalid_argument(
+            "NeuralNetwork backward input shape does not match forward pass"
+        );
     }
 
-    Tensor<T> gradient = (p_y - p_output) *
-                         (static_cast<T>(2) / static_cast<T>(p_output.size()));
+    if (p_gradient.shape().rows != output_shape.rows ||
+        p_gradient.shape().cols != output_shape.cols) {
+        throw std::invalid_argument(
+            "NeuralNetwork gradient shape must match network output"
+        );
+    }
+
+    Tensor<T> gradient = p_gradient;
 
     for (std::size_t index = _layers.size(); index-- > 0;) {
         Layer& layer = _layers[index];
@@ -166,6 +176,8 @@ void NeuralNetwork<T>::backward(
         gradient =
             d_linear.matmul(layer.weights, MatrixOp::None, MatrixOp::Transpose);
     }
+
+    _has_forward_data = false;
 }
 
 template <typename T> std::string NeuralNetwork<T>::toString() const {

@@ -22,7 +22,17 @@ template <typename T>
 Tensor<T>::Tensor(
     std::initializer_list<std::initializer_list<T>> p_values
 ) {
+    if (p_values.size() == 0) {
+        throw std::invalid_argument("Tensor initializer list cannot be empty");
+    }
+
     _shape = {p_values.size(), p_values.begin()->size()};
+
+    for (const auto& values_row : p_values) {
+        if (values_row.size() != _shape.cols) {
+            throw std::invalid_argument("Tensor rows must have equal sizes");
+        }
+    }
 
     _size = _shape.rows * _shape.cols;
     _data.resize(_size);
@@ -104,6 +114,17 @@ T Tensor<T>::get(
     }
 
     return _data[row * _shape.cols + col];
+}
+
+template <typename T>
+T Tensor<T>::get(
+    std::size_t i
+) const {
+    if (i >= _size) {
+        throw std::invalid_argument("Get outside tensor shape");
+    }
+
+    return _data[i];
 }
 
 template <typename T> Shape Tensor<T>::shape() const {

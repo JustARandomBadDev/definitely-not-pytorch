@@ -37,7 +37,7 @@ template <typename T> class NeuralNetwork {
     void initialize(Initializer p_initializer);
 
     Tensor<T> forward(const Tensor<T>& p_input);
-    void backward(const Tensor<T>& p_input, const Tensor<T>& p_output);
+    void backward(const Tensor<T>& p_input, const Tensor<T>& p_gradient);
 
     std::string toString() const;
 
@@ -67,6 +67,7 @@ template <typename T> class NeuralNetwork {
     std::vector<Layer> _layers;
     std::vector<TrainData> _train_data;
     std::vector<Gradient> _gradients;
+    bool _has_forward_data = false;
 
     void initializeLayers(std::span<const LayerDescriptor> p_layers);
 

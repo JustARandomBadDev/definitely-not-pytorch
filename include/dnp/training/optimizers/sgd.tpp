@@ -1,7 +1,7 @@
 #ifndef DNP_SGD_TPP
 #define DNP_SGD_TPP
 
-#include "dnp/training/sgd.hpp"
+#include "dnp/training/optimizers/sgd.hpp"
 #include <cstddef>
 
 namespace dnp::training {

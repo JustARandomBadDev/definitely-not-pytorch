@@ -3,7 +3,8 @@
 
 #include "dnp/neural_network.hpp"
 #include "dnp/tensor.hpp"
-#include "dnp/training/sgd.hpp"
+#include "dnp/training/loss/mse.hpp"
+#include "dnp/training/optimizers/sgd.hpp"
 #include "dnp/training/trainer.hpp"
 
 int main() {
@@ -24,7 +25,8 @@ int main() {
     dnp::Tensor<double> output = {{0.0f}, {1.0f}, {1.0f}, {0.0f}};
 
     dnp::training::SGD<double> sgd(learning_rate);
-    dnp::training::Trainer<double> trainer(nn, sgd);
+    dnp::training::MeanSquaredError<double> mse;
+    dnp::training::Trainer<double> trainer(nn, sgd, mse);
 
     trainer.train(input, output, epochs);
 

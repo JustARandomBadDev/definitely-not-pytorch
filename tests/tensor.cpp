@@ -40,6 +40,23 @@ DNP_TEST(
         {1, 2, 3, 4, 5, 6},
         1e-6,
         "initializer-list constructor");
+
+    expectThrows<std::invalid_argument>(
+        []() {
+            Tensor<float> empty(
+                std::initializer_list<std::initializer_list<float>>{}
+            );
+            (void)empty;
+        },
+        "empty initializer-list constructor"
+    );
+    expectThrows<std::invalid_argument>(
+        []() {
+            const Tensor<float> ragged{{1}, {2, 3}};
+            (void)ragged;
+        },
+        "ragged initializer-list constructor"
+    );
 }
 
 DNP_TEST(
@@ -57,6 +74,8 @@ DNP_TEST(
 
     expectThrows<std::invalid_argument>([&]() { tensor.get(2, 0); },
         "out-of-range get");
+    expectThrows<std::invalid_argument>([&]() { tensor.get(4); },
+        "out-of-range flat get");
     expectThrows<std::invalid_argument>([&]() { tensor.set(4, 1.0); },
         "out-of-range set");
 }

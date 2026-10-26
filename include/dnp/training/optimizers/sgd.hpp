@@ -22,7 +22,7 @@ template <typename T> class SGD : public Optimizer<T> {
 } // namespace dnp::training
 
 #ifndef DNP_SGD_TPP
-#include "dnp/training/sgd.tpp"
+#include "dnp/training/optimizers/sgd.tpp"
 #endif
 
 #endif
