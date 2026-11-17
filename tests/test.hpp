@@ -121,8 +121,10 @@ void expectShape(
     std::size_t p_cols,
     const std::string& p_context
 ) {
-    expectEqual(p_tensor.shape().rows, p_rows, p_context + " rows");
-    expectEqual(p_tensor.shape().cols, p_cols, p_context + " columns");
+    const auto shapes = p_tensor.shapes();
+    expectEqual(shapes.size(), std::size_t{2}, p_context + " rank");
+    expectEqual(shapes[0], p_rows, p_context + " rows");
+    expectEqual(shapes[1], p_cols, p_context + " columns");
     expectEqual(p_tensor.size(), p_rows * p_cols, p_context + " size");
 }
 
@@ -146,7 +148,7 @@ void expectTensorNear(
         for (std::size_t col = 0; col < p_cols; col++) {
             std::ostringstream element_context;
             element_context << p_context << '[' << row << ", " << col << ']';
-            expectNear(p_tensor.get(row, col),
+            expectNear(p_tensor.get(row * p_cols + col),
                 *expected,
                 p_tolerance,
                 element_context.str());

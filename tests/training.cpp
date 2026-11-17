@@ -14,18 +14,118 @@ using dnp::NeuralNetwork;
 using dnp::Tensor;
 using dnp::test::expectEqual;
 using dnp::test::expectNear;
-using dnp::test::expectTensorNear;
 using dnp::test::expectThrows;
 using dnp::training::MeanSquaredError;
 using dnp::training::SGD;
 using dnp::training::Trainer;
 
+template <typename T>
+Tensor<T> makeTensor(
+    std::initializer_list<std::initializer_list<T>> p_rows
+) {
+    if (p_rows.size() == 0 || p_rows.begin()->size() == 0) {
+        throw std::invalid_argument("Tensor must have non-empty rows");
+    }
+
+    const std::size_t cols = p_rows.begin()->size();
+    for (const auto& row : p_rows) {
+        if (row.size() != cols) {
+            throw std::invalid_argument("Tensor rows must have the same size");
+        }
+    }
+
+    Tensor<T> tensor(
+        {static_cast<std::uint32_t>(p_rows.size()),
+            static_cast<std::uint32_t>(cols)}
+    );
+
+    std::size_t i = 0;
+    for (const auto& row : p_rows) {
+        for (const T value : row) {
+            tensor.set(i++, value);
+        }
+    }
+
+    return tensor;
+}
+
+template <typename T>
+T get2D(
+    const Tensor<T>& p_tensor,
+    std::size_t p_row,
+    std::size_t p_col
+) {
+    const auto shape = p_tensor.shapes();
+    if (shape.size() != 2 || p_row >= shape[0] || p_col >= shape[1]) {
+        throw std::invalid_argument("Get outside tensor shape");
+    }
+    return p_tensor.get(p_row * shape[1] + p_col);
+}
+
+template <typename T>
+void set2D(
+    Tensor<T>& p_tensor,
+    std::size_t p_row,
+    std::size_t p_col,
+    T p_value
+) {
+    const auto shape = p_tensor.shapes();
+    if (shape.size() != 2 || p_row >= shape[0] || p_col >= shape[1]) {
+        throw std::invalid_argument("Set outside tensor shape");
+    }
+    p_tensor.set(p_row * shape[1] + p_col, p_value);
+}
+
+template <typename T>
+void expectShape(
+    const Tensor<T>& p_tensor,
+    std::size_t p_rows,
+    std::size_t p_cols,
+    const std::string& p_context
+) {
+    const auto shape = p_tensor.shapes();
+    expectEqual(shape.size(), std::size_t{2}, p_context + " dimension count");
+    if (shape.size() != 2) return;
+    expectEqual(shape[0],
+        static_cast<std::uint32_t>(p_rows),
+        p_context + " rows");
+    expectEqual(shape[1],
+        static_cast<std::uint32_t>(p_cols),
+        p_context + " columns");
+}
+
+template <typename T>
+void expectTensorNear(
+    const Tensor<T>& p_tensor,
+    std::size_t p_rows,
+    std::size_t p_cols,
+    std::initializer_list<double> p_expected,
+    double p_tolerance,
+    const std::string& p_context
+) {
+    expectShape(p_tensor, p_rows, p_cols, p_context);
+    expectEqual(p_tensor.size(),
+        p_expected.size(),
+        p_context + " element count");
+
+    std::size_t i = 0;
+    for (const double value : p_expected) {
+        if (i >= p_tensor.size()) break;
+        expectNear(static_cast<double>(p_tensor.get(i)),
+            value,
+            p_tolerance,
+            p_context + " element " + std::to_string(i));
+        i++;
+    }
+}
+
 template <typename T> NeuralNetwork<T> makeTrainingNetwork() {
     NeuralNetwork<T> network{{2}, {1}};
     auto& layer = network.getLayers()[0];
 
-    layer.weights = {{static_cast<T>(0.25)}, {static_cast<T>(-0.5)}};
-    layer.biais = {{static_cast<T>(0.1)}};
+    layer.weights =
+        makeTensor<T>({{static_cast<T>(0.25)}, {static_cast<T>(-0.5)}});
+    layer.biais = makeTensor<T>({{static_cast<T>(0.1)}});
 
     return network;
 }
@@ -85,8 +185,8 @@ DNP_TEST(
     training_sgd_applies_expected_parameter_update
 ) {
     NeuralNetwork<float> network{{2}, {1}};
-    const Tensor<float> input{{1, 2}, {3, 4}};
-    const Tensor<float> target{{1}, {2}};
+    const Tensor<float> input = makeTensor<float>({{1, 2}, {3, 4}});
+    const Tensor<float> target = makeTensor<float>({{1}, {2}});
     SGD<float> optimizer(0.1f);
     MeanSquaredError<float> mse;
 
@@ -94,9 +194,15 @@ DNP_TEST(
     optimizer.step(network);
 
     const auto& layer = network.getLayers()[0];
-    expectNear(layer.weights.get(0, 0), 0.7f, 1e-6, "SGD first weight update");
-    expectNear(layer.weights.get(1, 0), 1.0f, 1e-6, "SGD second weight update");
-    expectNear(layer.biais.get(0, 0), 0.3f, 1e-6, "SGD bias update");
+    expectNear(get2D(layer.weights, 0, 0),
+        0.7f,
+        1e-6,
+        "SGD first weight update");
+    expectNear(get2D(layer.weights, 1, 0),
+        1.0f,
+        1e-6,
+        "SGD second weight update");
+    expectNear(get2D(layer.biais, 0, 0), 0.3f, 1e-6, "SGD bias update");
 }
 
 DNP_TEST(
@@ -104,8 +210,8 @@ DNP_TEST(
 ) {
     NeuralNetwork<float> slow_network{{2}, {1}};
     NeuralNetwork<float> fast_network = slow_network;
-    const Tensor<float> input{{1, 2}, {3, 4}};
-    const Tensor<float> target{{1}, {2}};
+    const Tensor<float> input = makeTensor<float>({{1, 2}, {3, 4}});
+    const Tensor<float> target = makeTensor<float>({{1}, {2}});
     SGD<float> slow(0.1f);
     SGD<float> fast(0.2f);
     MeanSquaredError<float> mse;
@@ -118,16 +224,16 @@ DNP_TEST(
     const auto& slow_layer = slow_network.getLayers()[0];
     const auto& fast_layer = fast_network.getLayers()[0];
 
-    expectNear(fast_layer.weights.get(0, 0),
-        2.0f * slow_layer.weights.get(0, 0),
+    expectNear(get2D(fast_layer.weights, 0, 0),
+        2.0f * get2D(slow_layer.weights, 0, 0),
         1e-6,
         "learning rate scales first weight displacement");
-    expectNear(fast_layer.weights.get(1, 0),
-        2.0f * slow_layer.weights.get(1, 0),
+    expectNear(get2D(fast_layer.weights, 1, 0),
+        2.0f * get2D(slow_layer.weights, 1, 0),
         1e-6,
         "learning rate scales second weight displacement");
-    expectNear(fast_layer.biais.get(0, 0),
-        2.0f * slow_layer.biais.get(0, 0),
+    expectNear(get2D(fast_layer.biais, 0, 0),
+        2.0f * get2D(slow_layer.biais, 0, 0),
         1e-6,
         "learning rate scales bias displacement");
 }
@@ -137,8 +243,9 @@ DNP_TEST(
 ) {
     NeuralNetwork<float> manual = makeTrainingNetwork<float>();
     NeuralNetwork<float> trained = manual;
-    const Tensor<float> input{{0.5f, -1.0f}, {2.0f, 0.25f}};
-    const Tensor<float> target{{0.75f}, {-0.5f}};
+    const Tensor<float> input =
+        makeTensor<float>({{0.5f, -1.0f}, {2.0f, 0.25f}});
+    const Tensor<float> target = makeTensor<float>({{0.75f}, {-0.5f}});
     SGD<float> manual_optimizer(0.05f);
     SGD<float> trainer_optimizer(0.05f);
     MeanSquaredError<float> mse;
@@ -159,8 +266,9 @@ DNP_TEST(
 ) {
     NeuralNetwork<float> trainer_network = makeTrainingNetwork<float>();
     NeuralNetwork<float> manual_network = trainer_network;
-    const Tensor<float> input{{0.5f, -1.0f}, {2.0f, 0.25f}};
-    const Tensor<float> target{{0.75f}, {-0.5f}};
+    const Tensor<float> input =
+        makeTensor<float>({{0.5f, -1.0f}, {2.0f, 0.25f}});
+    const Tensor<float> target = makeTensor<float>({{0.75f}, {-0.5f}});
     SGD<float> trainer_optimizer(0.05f);
     SGD<float> manual_optimizer(0.05f);
     MeanSquaredError<float> mse;
@@ -185,34 +293,34 @@ DNP_TEST(
 ) {
     NeuralNetwork<double> network{{2}, {1}};
     auto& layer = network.getLayers()[0];
-    layer.weights = {{0.5}, {-0.25}};
-    layer.biais = {{0.1}};
+    layer.weights = makeTensor<double>({{0.5}, {-0.25}});
+    layer.biais = makeTensor<double>({{0.1}});
 
-    const Tensor<double> input{{2.0, -1.0}};
-    const Tensor<double> target{{3.0}};
+    const Tensor<double> input = makeTensor<double>({{2.0, -1.0}});
+    const Tensor<double> target = makeTensor<double>({{3.0}});
     SGD<double> optimizer(0.1);
     MeanSquaredError<double> mse;
     Trainer<double> trainer(network, optimizer, mse);
 
     trainer.train(input, target);
 
-    expectNear(layer.weights.get(0, 0),
+    expectNear(get2D(layer.weights, 0, 0),
         1.16,
         1e-12,
         "double first weight update");
-    expectNear(layer.weights.get(1, 0),
+    expectNear(get2D(layer.weights, 1, 0),
         -0.58,
         1e-12,
         "double second weight update");
-    expectNear(layer.biais.get(0, 0), 0.43, 1e-12, "double bias update");
+    expectNear(get2D(layer.biais, 0, 0), 0.43, 1e-12, "double bias update");
 }
 
 DNP_TEST(
     training_mse_computes_values_and_rejects_invalid_inputs
 ) {
     const MeanSquaredError<float> mse;
-    const Tensor<float> prediction{{1, 3}};
-    const Tensor<float> target{{0, 1}};
+    const Tensor<float> prediction = makeTensor<float>({{1, 3}});
+    const Tensor<float> target = makeTensor<float>({{0, 1}});
 
     expectNear(mse.compute(prediction, target), 2.5f, 1e-6, "MSE value");
     expectTensorNear(mse.gradient(prediction, target),
@@ -222,7 +330,7 @@ DNP_TEST(
         1e-6,
         "MSE gradient");
 
-    const Tensor<float> different_shape{{0}, {1}};
+    const Tensor<float> different_shape = makeTensor<float>({{0}, {1}});
     expectThrows<std::invalid_argument>(
         [&]() { (void)mse.compute(prediction, different_shape); },
         "MSE compute shape mismatch",
@@ -234,16 +342,10 @@ DNP_TEST(
         "shapes must match"
     );
 
-    const Tensor<float> empty(dnp::Shape{0, 1});
+    // The N-D Tensor constructor rejects zero-sized dimensions.
     expectThrows<std::invalid_argument>(
-        [&]() { (void)mse.compute(empty, empty); },
-        "MSE compute empty tensors",
-        "cannot be empty"
-    );
-    expectThrows<std::invalid_argument>(
-        [&]() { (void)mse.gradient(empty, empty); },
-        "MSE gradient empty tensors",
-        "cannot be empty"
+        []() { (void)Tensor<float>(dnp::Shapes{0, 1}); },
+        "zero-sized tensor rejected by constructor"
     );
 }
 

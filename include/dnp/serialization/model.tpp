@@ -38,7 +38,7 @@ void saveModel(
 
     for (const typename NeuralNetwork<T>::Layer& layer :
         p_network.getLayers()) {
-        file << "layer " << layer.weights.shape().cols << ' '
+        file << "layer " << layer.weights.shapes()[1] << ' '
              << getStringFromActivation(layer.activation) << '\n';
     }
 

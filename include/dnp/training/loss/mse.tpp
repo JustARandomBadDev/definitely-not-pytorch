@@ -11,8 +11,7 @@ T MeanSquaredError<T>::compute(
     const Tensor<T>& p_prediction,
     const Tensor<T>& p_target
 ) const {
-    if (p_prediction.shape().rows != p_target.shape().rows ||
-        p_prediction.shape().cols != p_target.shape().cols) {
+    if (p_prediction.shapes() != p_target.shapes()) {
         throw std::invalid_argument(
             "MSE compute: prediction and target shapes must match"
         );
@@ -39,8 +38,7 @@ Tensor<T> MeanSquaredError<T>::gradient(
     const Tensor<T>& p_prediction,
     const Tensor<T>& p_target
 ) const {
-    if (p_prediction.shape().rows != p_target.shape().rows ||
-        p_prediction.shape().cols != p_target.shape().cols) {
+    if (p_prediction.shapes() != p_target.shapes()) {
         throw std::invalid_argument(
             "MSE gradient: prediction and target shapes must match"
         );

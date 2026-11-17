@@ -1,8 +1,10 @@
 #include "test.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <stdexcept>
 #include <string>
 
@@ -19,25 +21,124 @@ using dnp::serialization::loadModel;
 using dnp::serialization::saveModel;
 using dnp::test::expectEqual;
 using dnp::test::expectNear;
-using dnp::test::expectShape;
-using dnp::test::expectTensorNear;
 using dnp::test::expectThrows;
 using dnp::test::TempDirectory;
+
+template <typename T>
+Tensor<T> makeTensor(
+    std::initializer_list<std::initializer_list<T>> p_rows
+) {
+    if (p_rows.size() == 0 || p_rows.begin()->size() == 0) {
+        throw std::invalid_argument("Tensor must have non-empty rows");
+    }
+
+    const std::size_t cols = p_rows.begin()->size();
+    for (const auto& row : p_rows) {
+        if (row.size() != cols) {
+            throw std::invalid_argument("Tensor rows must have the same size");
+        }
+    }
+
+    Tensor<T> tensor(
+        {static_cast<std::uint32_t>(p_rows.size()),
+            static_cast<std::uint32_t>(cols)}
+    );
+
+    std::size_t i = 0;
+    for (const auto& row : p_rows) {
+        for (const T value : row) {
+            tensor.set(i++, value);
+        }
+    }
+
+    return tensor;
+}
+
+template <typename T>
+T get2D(
+    const Tensor<T>& p_tensor,
+    std::size_t p_row,
+    std::size_t p_col
+) {
+    const auto shape = p_tensor.shapes();
+    if (shape.size() != 2 || p_row >= shape[0] || p_col >= shape[1]) {
+        throw std::invalid_argument("Get outside tensor shape");
+    }
+    return p_tensor.get(p_row * shape[1] + p_col);
+}
+
+template <typename T>
+void set2D(
+    Tensor<T>& p_tensor,
+    std::size_t p_row,
+    std::size_t p_col,
+    T p_value
+) {
+    const auto shape = p_tensor.shapes();
+    if (shape.size() != 2 || p_row >= shape[0] || p_col >= shape[1]) {
+        throw std::invalid_argument("Set outside tensor shape");
+    }
+    p_tensor.set(p_row * shape[1] + p_col, p_value);
+}
+
+template <typename T>
+void expectShape(
+    const Tensor<T>& p_tensor,
+    std::size_t p_rows,
+    std::size_t p_cols,
+    const std::string& p_context
+) {
+    const auto shape = p_tensor.shapes();
+    expectEqual(shape.size(), std::size_t{2}, p_context + " dimension count");
+    if (shape.size() != 2) return;
+    expectEqual(shape[0],
+        static_cast<std::uint32_t>(p_rows),
+        p_context + " rows");
+    expectEqual(shape[1],
+        static_cast<std::uint32_t>(p_cols),
+        p_context + " columns");
+}
+
+template <typename T>
+void expectTensorNear(
+    const Tensor<T>& p_tensor,
+    std::size_t p_rows,
+    std::size_t p_cols,
+    std::initializer_list<double> p_expected,
+    double p_tolerance,
+    const std::string& p_context
+) {
+    expectShape(p_tensor, p_rows, p_cols, p_context);
+    expectEqual(p_tensor.size(),
+        p_expected.size(),
+        p_context + " element count");
+
+    std::size_t i = 0;
+    for (const double value : p_expected) {
+        if (i >= p_tensor.size()) break;
+        expectNear(static_cast<double>(p_tensor.get(i)),
+            value,
+            p_tolerance,
+            p_context + " element " + std::to_string(i));
+        i++;
+    }
+}
 
 template <typename T> NeuralNetwork<T> makeModel() {
     NeuralNetwork<T> network{{2}, {3, Tan}, {1, None}};
     auto& layers = network.getLayers();
 
-    layers[0].weights = {
-        {static_cast<T>(0.1), static_cast<T>(-0.2), static_cast<T>(0.3)},
-        {static_cast<T>(0.4), static_cast<T>(0.5), static_cast<T>(-0.6)}
-    };
-    layers[0].biais = {
-        {static_cast<T>(0.01), static_cast<T>(-0.02), static_cast<T>(0.03)}
-    };
-    layers[1].weights =
-        {{static_cast<T>(0.7)}, {static_cast<T>(-0.8)}, {static_cast<T>(0.9)}};
-    layers[1].biais = {{static_cast<T>(-0.04)}};
+    layers[0].weights = makeTensor<T>(
+        {{static_cast<T>(0.1), static_cast<T>(-0.2), static_cast<T>(0.3)},
+            {static_cast<T>(0.4), static_cast<T>(0.5), static_cast<T>(-0.6)}}
+    );
+    layers[0].biais = makeTensor<T>(
+        {{static_cast<T>(0.01), static_cast<T>(-0.02), static_cast<T>(0.03)}}
+    );
+    layers[1].weights = makeTensor<T>(
+        {{static_cast<T>(0.7)}, {static_cast<T>(-0.8)}, {static_cast<T>(0.9)}}
+    );
+    layers[1].biais = makeTensor<T>({{static_cast<T>(-0.04)}});
 
     return network;
 }
@@ -66,12 +167,12 @@ void expectModelsEqual(
             static_cast<int>(expected_layer.activation),
             p_context + " activation");
         expectShape(actual_layer.weights,
-            expected_layer.weights.shape().rows,
-            expected_layer.weights.shape().cols,
+            expected_layer.weights.shapes()[0],
+            expected_layer.weights.shapes()[1],
             p_context + " weights");
         expectShape(actual_layer.biais,
-            expected_layer.biais.shape().rows,
-            expected_layer.biais.shape().cols,
+            expected_layer.biais.shapes()[0],
+            expected_layer.biais.shapes()[1],
             p_context + " bias");
 
         for (std::size_t index = 0; index < expected_layer.weights.size();
@@ -113,13 +214,13 @@ DNP_TEST(
 
     expectModelsEqual(original, loaded, 0.0f, "float round trip");
 
-    Tensor<float> input{{0.5f, -0.25f}, {1.0f, 2.0f}};
+    Tensor<float> input = makeTensor<float>({{0.5f, -0.25f}, {1.0f, 2.0f}});
     const Tensor<float> original_output = original.forward(input);
     const Tensor<float> loaded_output = loaded.forward(input);
 
-    for (std::size_t row = 0; row < input.shape().rows; row++) {
-        expectNear(loaded_output.get(row, 0),
-            original_output.get(row, 0),
+    for (std::size_t row = 0; row < input.shapes()[0]; row++) {
+        expectNear(get2D(loaded_output, row, 0),
+            get2D(original_output, row, 0),
             1e-6,
             "float round-trip inference");
     }
@@ -136,11 +237,11 @@ DNP_TEST(
 
     expectModelsEqual(original, loaded, 0.0, "double round trip");
 
-    Tensor<double> input{{-0.75, 1.25}};
+    Tensor<double> input = makeTensor<double>({{-0.75, 1.25}});
     const Tensor<double> original_output = original.forward(input);
     const Tensor<double> loaded_output = loaded.forward(input);
-    expectNear(loaded_output.get(0, 0),
-        original_output.get(0, 0),
+    expectNear(get2D(loaded_output, 0, 0),
+        get2D(original_output, 0, 0),
         1e-12,
         "double round-trip inference");
 }
@@ -154,8 +255,9 @@ DNP_TEST(
     saveModel(original, path);
     NeuralNetwork<float> loaded = loadModel<float>(path);
 
-    Tensor<float> batch_four{{0, 0}, {1, 0}, {0, 1}, {1, 1}};
-    Tensor<float> batch_one{{0.25f, -0.5f}};
+    Tensor<float> batch_four =
+        makeTensor<float>({{0, 0}, {1, 0}, {0, 1}, {1, 1}});
+    Tensor<float> batch_one = makeTensor<float>({{0.25f, -0.5f}});
     const Tensor<float> first_four = loaded.forward(batch_four);
     const Tensor<float> one = loaded.forward(batch_one);
     const Tensor<float> second_four = loaded.forward(batch_four);
@@ -164,9 +266,9 @@ DNP_TEST(
     expectShape(one, 1, 1, "loaded model batch one");
     expectShape(second_four, 4, 1, "loaded model second batch four");
 
-    for (std::size_t row = 0; row < batch_four.shape().rows; row++) {
-        expectNear(second_four.get(row, 0),
-            first_four.get(row, 0),
+    for (std::size_t row = 0; row < batch_four.shapes()[0]; row++) {
+        expectNear(get2D(second_four, row, 0),
+            get2D(first_four, row, 0),
             1e-6,
             "loaded model repeated batch result");
     }
@@ -272,13 +374,13 @@ DNP_TEST(
         0.0f,
         "two serialization cycles");
 
-    Tensor<float> input{{0, 0}, {1, 0}, {0, 1}, {1, 1}};
+    Tensor<float> input = makeTensor<float>({{0, 0}, {1, 0}, {0, 1}, {1, 1}});
     const Tensor<float> original_output = original.forward(input);
     const Tensor<float> loaded_output = second_loaded.forward(input);
 
-    for (std::size_t row = 0; row < input.shape().rows; row++) {
-        expectNear(loaded_output.get(row, 0),
-            original_output.get(row, 0),
+    for (std::size_t row = 0; row < input.shapes()[0]; row++) {
+        expectNear(get2D(loaded_output, row, 0),
+            get2D(original_output, row, 0),
             1e-6,
             "two-cycle inference");
     }

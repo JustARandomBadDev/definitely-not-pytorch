@@ -6,6 +6,7 @@
 #include "dnp/tensor.hpp"
 
 #include <cstddef>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -137,17 +138,17 @@ void NeuralNetwork<T>::backward(
         );
     }
 
-    const Shape output_shape = _train_data.back().activated.shape();
+    const Shapes output_shape = _train_data.back().activated.shapes();
+    const Shapes input_shape = p_input.shapes();
 
-    if (p_input.shape().rows != output_shape.rows ||
-        p_input.shape().cols != _input_size) {
+    if (input_shape.size() != 2 || input_shape[0] != output_shape[0] ||
+        input_shape[1] != _input_size) {
         throw std::invalid_argument(
             "NeuralNetwork backward input shape does not match forward pass"
         );
     }
 
-    if (p_gradient.shape().rows != output_shape.rows ||
-        p_gradient.shape().cols != output_shape.cols) {
+    if (p_gradient.shapes() != output_shape) {
         throw std::invalid_argument(
             "NeuralNetwork gradient shape must match network output"
         );
@@ -188,12 +189,12 @@ template <typename T> std::string NeuralNetwork<T>::toString() const {
 
     for (std::size_t index = 0; index < _layers.size(); index++) {
         const Layer& layer = _layers[index];
-        const Shape weights_shape = layer.weights.shape();
-        const Shape bias_shape = layer.biais.shape();
+        const Shapes weights_shape = layer.weights.shapes();
+        const Shapes bias_shape = layer.biais.shapes();
 
-        stream << "\n    Layer " << index << ": weights=" << weights_shape.rows
-               << 'x' << weights_shape.cols << ", bias=" << bias_shape.rows
-               << 'x' << bias_shape.cols
+        stream << "\n    Layer " << index << ": weights=" << weights_shape[0]
+               << 'x' << weights_shape[1] << ", bias=" << bias_shape[0]
+               << 'x' << bias_shape[1]
                << ", activation=" << getStringFromActivation(layer.activation);
     }
 
@@ -206,19 +207,26 @@ void NeuralNetwork<T>::addLayer(
     std::size_t p_size,
     Activation p_activation
 ) {
+    if (p_prev_layer_size > std::numeric_limits<std::uint32_t>::max() ||
+        p_size > std::numeric_limits<std::uint32_t>::max()) {
+        throw std::invalid_argument("Layer size exceeds tensor dimension range");
+    }
+    const auto input_size = static_cast<std::uint32_t>(p_prev_layer_size);
+    const auto size = static_cast<std::uint32_t>(p_size);
+
     _layers.push_back(Layer{
-        Tensor<T>(Shape{p_prev_layer_size, p_size}),
-        Tensor<T>(Shape{1, p_size}),
+        Tensor<T>({input_size, size}),
+        Tensor<T>({1, size}),
         p_activation
     });
 
     _train_data.push_back(
-        TrainData{Tensor<T>(Shape{1, p_size}), Tensor<T>(Shape{1, p_size})}
+        TrainData{Tensor<T>({1, size}), Tensor<T>({1, size})}
     );
 
     _gradients.push_back(Gradient{
-        Tensor<T>(Shape{p_prev_layer_size, p_size}),
-        Tensor<T>(Shape{1, p_size}),
+        Tensor<T>({input_size, size}),
+        Tensor<T>({1, size}),
     });
 }
 
